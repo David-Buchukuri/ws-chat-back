@@ -77,3 +77,9 @@ wss.on("connection", (ws) => {
     }
   });
 });
+
+["uncaughtException", "unhandledRejection"].forEach((event) => {
+  process.on(event, (err) => {
+    console.log(`something went wrong ${event} error: ${err.stack || error}`);
+  });
+});
