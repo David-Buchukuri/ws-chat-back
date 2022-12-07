@@ -49,13 +49,13 @@ wss.on("connection", (ws) => {
   const id = crypto.randomBytes(30).toString("hex");
 
   wsConnectionsHashMap[id] = { ws: ws, room: null };
+
   ws.send(JSON.stringify({ type: "clientId", value: id }));
 
   ws.on("message", (data) => {
     let receivedMessage = JSON.parse(data.toString());
 
     if (receivedMessage.action == "join") {
-      console.log(Object.keys(wsConnectionsHashMap).length);
       const clientConnection = wsConnectionsHashMap[receivedMessage.clientId];
       clientConnection.room = receivedMessage.room;
     }
@@ -75,6 +75,10 @@ wss.on("connection", (ws) => {
         }
       }
     }
+  });
+
+  ws.on("close", () => {
+    delete wsConnectionsHashMap[id];
   });
 });
 
