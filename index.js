@@ -1,20 +1,14 @@
 const http = require("http");
 var crypto = require("crypto");
+const WebSocket = require("ws");
 
 server = http.createServer((req, res) => {
-  const headers = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "OPTIONS, POST, GET",
-    "Access-Control-Max-Age": 2592000,
-  };
+  if (req.url == "/create-room") {
+    const roomId = crypto.randomBytes(30).toString("hex");
+    // create empty room
+    rooms[roomId] = {};
+    console.log(rooms);
 
-  if (req.method === "OPTIONS") {
-    res.writeHead(204, headers);
-    res.end();
-    return;
-  }
-
-  if (req.url == "/foo") {
     res.writeHead(200, headers);
     res.write(JSON.stringify("bar"));
     res.end();
@@ -25,61 +19,63 @@ server.listen(8005, () => {
   console.log("listening on port 8005");
 });
 
-const WebSocket = require("ws");
-
 const wss = new WebSocket.Server({
   noServer: true,
 });
 
 server.on("upgrade", async function upgrade(request, socket, head) {
-  // we can write our auth logic here
-
-  // if (Math.random() > 0.5) {
-  //   return socket.end();
-  // }
-
+  // check if room exists or not
+  if (!rooms[request.roomId]) {
+    socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+    socket.destroy();
+    return;
+  }
+  // check if room has more than 1 client
+  if (Object.keys(rooms[request.roomId]).length > 1) {
+    socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
+    socket.destroy();
+    return;
+  }
   wss.handleUpgrade(request, socket, head, function done(ws) {
-    wss.emit("connection", ws, request);
+    wss.emit("connection", ws, request.roomId);
   });
 });
 
-const wsConnectionsHashMap = {};
+const rooms = {};
 
-wss.on("connection", (ws) => {
-  const id = crypto.randomBytes(30).toString("hex");
+wss.on("connection", (ws, roomId) => {
+  const clientId = crypto.randomBytes(30).toString("hex");
 
-  wsConnectionsHashMap[id] = { ws: ws, room: null };
+  rooms[roomId][clientId] = ws;
 
   ws.send(JSON.stringify({ type: "clientId", value: id }));
 
   ws.on("message", (data) => {
     let receivedMessage = JSON.parse(data.toString());
 
-    if (receivedMessage.action == "join") {
-      const clientConnection = wsConnectionsHashMap[receivedMessage.clientId];
-      clientConnection.room = receivedMessage.room;
-    }
     if (receivedMessage.action == "message") {
-      let room = wsConnectionsHashMap[receivedMessage.clientId]?.room;
+      let room = rooms[receivedMessage.roomId];
 
       if (!room) {
         return false;
       }
 
-      for (let connectionObjectKey in wsConnectionsHashMap) {
-        let connectionObject = wsConnectionsHashMap[connectionObjectKey];
-        if (connectionObject.room == room) {
-          connectionObject.ws.send(
-            JSON.stringify({ type: "message", value: receivedMessage.value })
-          );
-        }
+      // check if user is really in the room where he claims
+      if (!room[receivedMessage.clientId]) {
+        return false;
+      }
+      for (let client in room) {
+        client.ws.send(
+          JSON.stringify({ type: "message", value: receivedMessage.value })
+        );
       }
     }
   });
 
-  ws.on("close", () => {
-    delete wsConnectionsHashMap[id];
-  });
+  // on close remove user from room and if room length == 0 delete the room
+  // ws.on("close", () => {
+  //   delete wsConnectionsHashMap[id];
+  // });
 });
 
 ["uncaughtException", "unhandledRejection"].forEach((event) => {
