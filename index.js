@@ -7,10 +7,11 @@ server = http.createServer((req, res) => {
     const roomId = crypto.randomBytes(30).toString("hex");
     // create empty room
     rooms[roomId] = {};
-    console.log(rooms);
 
-    res.writeHead(200, headers);
-    res.write(JSON.stringify("bar"));
+    res.writeHead(200, {
+      "Access-Control-Allow-Origin": "*",
+    });
+    res.write(JSON.stringify({ roomId: roomId }));
     res.end();
   }
 });
@@ -24,20 +25,17 @@ const wss = new WebSocket.Server({
 });
 
 server.on("upgrade", async function upgrade(request, socket, head) {
-  // check if room exists or not
-  if (!rooms[request.roomId]) {
+  roomId = request.url.substring(9);
+
+  // check if room exists or not and if it has more than 1 client
+  if (!rooms[roomId] || Object.keys(rooms[roomId]).length > 1) {
     socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
     socket.destroy();
     return;
   }
-  // check if room has more than 1 client
-  if (Object.keys(rooms[request.roomId]).length > 1) {
-    socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
-    socket.destroy();
-    return;
-  }
+
   wss.handleUpgrade(request, socket, head, function done(ws) {
-    wss.emit("connection", ws, request.roomId);
+    wss.emit("connection", ws, roomId);
   });
 });
 
@@ -45,36 +43,30 @@ const rooms = {};
 
 wss.on("connection", (ws, roomId) => {
   const clientId = crypto.randomBytes(30).toString("hex");
-
   rooms[roomId][clientId] = ws;
-
-  ws.send(JSON.stringify({ type: "clientId", value: id }));
-
+  ws.send(JSON.stringify({ type: "clientId", value: clientId }));
   ws.on("message", (data) => {
     let receivedMessage = JSON.parse(data.toString());
-
+    console.log(receivedMessage);
     if (receivedMessage.action == "message") {
-      let room = rooms[receivedMessage.roomId];
-
+      let room = rooms[receivedMessage?.roomId];
       if (!room) {
         return false;
       }
-
       // check if user is really in the room where he claims
       if (!room[receivedMessage.clientId]) {
         return false;
       }
       for (let client in room) {
-        client.ws.send(
+        room[client].send(
           JSON.stringify({ type: "message", value: receivedMessage.value })
         );
       }
     }
   });
-
-  // on close remove user from room and if room length == 0 delete the room
-  // ws.on("close", () => {
-  //   delete wsConnectionsHashMap[id];
+  // // on close remove user from room and if room length == 0 delete the room
+  // // ws.on("close", () => {
+  // //   delete wsConnectionsHashMap[id];
   // });
 });
 
