@@ -44,8 +44,6 @@ const rooms = {};
 wss.on("connection", (ws, roomId) => {
   const clientId = crypto.randomBytes(30).toString("hex");
 
-  console.log("client Id join: ", clientId);
-
   // putting newly connected user in appropriate room with unique id
   rooms[roomId][clientId] = ws;
 
@@ -73,13 +71,11 @@ wss.on("connection", (ws, roomId) => {
 
   // on close, terminate connection. remove user from room and if no one is left in the room delete the room
   ws.on("close", () => {
-    console.log("client Id leave: ", clientId);
     rooms[roomId][clientId].terminate();
     delete rooms[roomId][clientId];
     if (Object.keys(rooms[roomId]).length === 0) {
       delete rooms[roomId];
     }
-    console.log(rooms);
   });
 });
 
