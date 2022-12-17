@@ -1,6 +1,7 @@
 const http = require("http");
-var crypto = require("crypto");
+const crypto = require("crypto");
 const WebSocket = require("ws");
+const randomNickname = require("./helpers/randomNickname.js");
 
 server = http.createServer((req, res) => {
   if (req.url == "/create-room") {
@@ -43,11 +44,18 @@ const rooms = {};
 
 wss.on("connection", (ws, roomId) => {
   const clientId = crypto.randomBytes(30).toString("hex");
+  const nickname = randomNickname();
 
-  // putting newly connected user in appropriate room with unique id
-  rooms[roomId][clientId] = ws;
+  // putting newly connected user in appropriate room with unique id and nickname
+  const room = rooms[roomId];
+  room[clientId] = { ws: ws, nickname: nickname };
 
   ws.send(JSON.stringify({ type: "clientId", value: clientId }));
+
+  // sending user joined notification to all clients in the room
+  for (let client in room) {
+    room[client].ws.send(JSON.stringify({ type: "join", value: nickname }));
+  }
 
   ws.on("message", (data) => {
     let receivedMessage = JSON.parse(data.toString());
@@ -58,11 +66,11 @@ wss.on("connection", (ws, roomId) => {
         return false;
       }
       // check if user is really in the room where he claims to be
-      if (!room[receivedMessage.clientId]) {
+      if (!room[receivedMessage?.clientId]) {
         return false;
       }
       for (let client in room) {
-        room[client].send(
+        room[client].ws.send(
           JSON.stringify({ type: "message", value: receivedMessage.value })
         );
       }
@@ -71,7 +79,7 @@ wss.on("connection", (ws, roomId) => {
 
   // on close, terminate connection. remove user from room and if no one is left in the room delete the room
   ws.on("close", () => {
-    rooms[roomId][clientId].terminate();
+    rooms[roomId][clientId].ws.terminate();
     delete rooms[roomId][clientId];
     if (Object.keys(rooms[roomId]).length === 0) {
       delete rooms[roomId];
