@@ -60,19 +60,34 @@ wss.on("connection", (ws, roomId) => {
   ws.on("message", (data) => {
     let receivedMessage = JSON.parse(data.toString());
 
+    let room = rooms[receivedMessage?.roomId];
+    if (!room) {
+      return false;
+    }
+    // check if user is really in the room where he claims to be
+    if (!room[receivedMessage?.clientId]) {
+      return false;
+    }
+
     if (receivedMessage.action == "message") {
-      let room = rooms[receivedMessage?.roomId];
-      if (!room) {
-        return false;
-      }
-      // check if user is really in the room where he claims to be
-      if (!room[receivedMessage?.clientId]) {
-        return false;
-      }
       for (let client in room) {
         room[client].ws.send(
           JSON.stringify({ type: "message", value: receivedMessage.value })
         );
+      }
+    }
+
+    if (receivedMessage.action == "typing") {
+      for (let client in room) {
+        // don't send this notification to the sender himself
+        if (receivedMessage?.clientId != client) {
+          room[client].ws.send(
+            JSON.stringify({
+              type: "typing",
+              value: room[receivedMessage?.clientId].nickname,
+            })
+          );
+        }
       }
     }
   });
