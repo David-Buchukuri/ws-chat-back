@@ -72,7 +72,11 @@ wss.on("connection", (ws, roomId) => {
     if (receivedMessage.action == "message") {
       for (let client in room) {
         room[client].ws.send(
-          JSON.stringify({ type: "message", value: receivedMessage.value })
+          JSON.stringify({
+            type: "message",
+            value: receivedMessage.value,
+            isMine: client == receivedMessage?.clientId ? true : false,
+          })
         );
       }
     }
