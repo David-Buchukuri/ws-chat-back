@@ -102,6 +102,10 @@ wss.on("connection", (ws, roomId) => {
     delete rooms[roomId][clientId];
     if (Object.keys(rooms[roomId]).length === 0) {
       delete rooms[roomId];
+      return;
+    }
+    for (let client in room) {
+      room[client].ws.send(JSON.stringify({ type: "leave", value: nickname }));
     }
   });
 });
