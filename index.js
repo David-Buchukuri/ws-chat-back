@@ -2,6 +2,9 @@ const http = require("http");
 const crypto = require("crypto");
 const WebSocket = require("ws");
 const randomNickname = require("./helpers/randomNickname.js");
+const randomImage = require("./helpers/randomImage.js");
+const fs = require("fs");
+const path = require("path");
 
 server = http.createServer((req, res) => {
   if (req.url == "/create-room") {
@@ -14,6 +17,17 @@ server = http.createServer((req, res) => {
     });
     res.write(JSON.stringify({ roomId: roomId }));
     res.end();
+  }
+
+  if (req.url == "/default") {
+    res.writeHead(200, {
+      "Access-Control-Allow-Origin": "*",
+      "Content-Type": "image/jpeg",
+    });
+    const image = fs.readFileSync(
+      path.resolve(__dirname, "./assets/default.jpg")
+    );
+    res.write(image);
   }
 });
 
@@ -42,13 +56,14 @@ server.on("upgrade", async function upgrade(request, socket, head) {
 
 const rooms = {};
 
-wss.on("connection", (ws, roomId) => {
+wss.on("connection", async (ws, roomId) => {
   const clientId = crypto.randomBytes(30).toString("hex");
   const nickname = randomNickname();
+  const pfp = await randomImage();
 
   // putting newly connected user in appropriate room with unique id and nickname
   const room = rooms[roomId];
-  room[clientId] = { ws: ws, nickname: nickname };
+  room[clientId] = { ws: ws, nickname: nickname, pfp: pfp };
 
   ws.send(JSON.stringify({ type: "clientId", value: clientId }));
 
@@ -76,6 +91,7 @@ wss.on("connection", (ws, roomId) => {
             type: "message",
             value: receivedMessage.value,
             isMine: client == receivedMessage?.clientId ? true : false,
+            pfp: room[receivedMessage?.clientId].pfp,
           })
         );
       }
