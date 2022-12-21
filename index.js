@@ -5,6 +5,7 @@ const randomNickname = require("./helpers/randomNickname.js");
 const randomImage = require("./helpers/randomImage.js");
 const fs = require("fs");
 const path = require("path");
+const ChatController = require("./controllers/chatController");
 
 server = http.createServer((req, res) => {
   if (req.url == "/create-room") {
@@ -28,6 +29,7 @@ server = http.createServer((req, res) => {
       path.resolve(__dirname, "./assets/default.jpg")
     );
     res.write(image);
+    res.end();
   }
 });
 
@@ -61,10 +63,11 @@ wss.on("connection", async (ws, roomId) => {
   const nickname = randomNickname();
   const pfp = await randomImage();
 
+  console.log(pfp);
+
   // putting newly connected user in appropriate room with unique id and nickname
   const room = rooms[roomId];
-  room[clientId] = { ws: ws, nickname: nickname, pfp: pfp };
-
+  room[clientId] = { ws: ws, nickname: nickname, pfp: pfp, isAlive: true };
   ws.send(JSON.stringify({ type: "clientId", value: clientId }));
 
   // sending user joined notification to all clients in the room
@@ -85,46 +88,42 @@ wss.on("connection", async (ws, roomId) => {
     }
 
     if (receivedMessage.action == "message") {
-      for (let client in room) {
-        room[client].ws.send(
-          JSON.stringify({
-            type: "message",
-            value: receivedMessage.value,
-            isMine: client == receivedMessage?.clientId ? true : false,
-            pfp: room[receivedMessage?.clientId].pfp,
-          })
-        );
-      }
+      ChatController.message(room, receivedMessage);
     }
 
     if (receivedMessage.action == "typing") {
-      for (let client in room) {
-        // don't send this notification to the sender himself
-        if (receivedMessage?.clientId != client) {
-          room[client].ws.send(
-            JSON.stringify({
-              type: "typing",
-              value: room[receivedMessage?.clientId].nickname,
-            })
-          );
-        }
-      }
+      ChatController.typing(room, receivedMessage);
     }
   });
 
   // on close, terminate connection. remove user from room and if no one is left in the room delete the room
   ws.on("close", () => {
-    rooms[roomId][clientId].ws.terminate();
-    delete rooms[roomId][clientId];
-    if (Object.keys(rooms[roomId]).length === 0) {
-      delete rooms[roomId];
-      return;
-    }
-    for (let client in room) {
-      room[client].ws.send(JSON.stringify({ type: "leave", value: nickname }));
-    }
+    ChatController.close(rooms, roomId, clientId);
+  });
+
+  ws.on("pong", () => {
+    room[clientId].isAlive = true;
   });
 });
+
+// monitoring for broken connections
+const pingInterval = setInterval(() => {
+  for (let roomId in rooms) {
+    for (let clientId in rooms[roomId]) {
+      let client = rooms[roomId][clientId];
+      if (!client.isAlive) {
+        client.ws.terminate();
+        delete rooms[roomId][clientId];
+        if (Object.keys(rooms[roomId]).length === 0) {
+          delete rooms[roomId];
+        }
+      } else {
+        client.isAlive = false;
+        client.ws.ping();
+      }
+    }
+  }
+}, 8640000);
 
 ["uncaughtException", "unhandledRejection"].forEach((event) => {
   process.on(event, (err) => {
