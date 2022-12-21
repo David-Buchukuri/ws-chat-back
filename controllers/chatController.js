@@ -1,3 +1,5 @@
+const onlineClients = require("../helpers/onlineClients");
+
 class ChatController {
   static message(room, receivedMessage) {
     for (let client in room) {
@@ -7,6 +9,7 @@ class ChatController {
           value: receivedMessage.value,
           isMine: client == receivedMessage?.clientId ? true : false,
           pfp: room[receivedMessage?.clientId].pfp,
+          nickname: room[receivedMessage?.clientId].nickname,
         })
       );
     }
@@ -33,9 +36,16 @@ class ChatController {
       delete rooms[roomId];
       return;
     }
+
     for (let client in rooms[roomId]) {
       let user = rooms[roomId][client];
-      user.ws.send(JSON.stringify({ type: "leave", value: user.nickname }));
+      user.ws.send(
+        JSON.stringify({
+          type: "leave",
+          value: user.nickname,
+          onlineClients: onlineClients(rooms[roomId]),
+        })
+      );
     }
   }
 }

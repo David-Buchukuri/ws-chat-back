@@ -6,6 +6,7 @@ const randomImage = require("./helpers/randomImage.js");
 const fs = require("fs");
 const path = require("path");
 const ChatController = require("./controllers/chatController");
+const onlineClients = require("./helpers/onlineClients.js");
 
 server = http.createServer((req, res) => {
   if (req.url == "/create-room") {
@@ -60,19 +61,24 @@ const rooms = {};
 
 wss.on("connection", async (ws, roomId) => {
   const clientId = crypto.randomBytes(30).toString("hex");
-  const nickname = randomNickname();
+  const nickname =
+    crypto.randomBytes(20).toString("hex") + " " + randomNickname();
   const pfp = await randomImage();
 
-  console.log(pfp);
-
-  // putting newly connected user in appropriate room with unique id and nickname
+  // putting newly connected user in appropriate room with unique id, nickname and pfp
   const room = rooms[roomId];
   room[clientId] = { ws: ws, nickname: nickname, pfp: pfp, isAlive: true };
   ws.send(JSON.stringify({ type: "clientId", value: clientId }));
 
   // sending user joined notification to all clients in the room
   for (let client in room) {
-    room[client].ws.send(JSON.stringify({ type: "join", value: nickname }));
+    room[client].ws.send(
+      JSON.stringify({
+        type: "join",
+        value: nickname,
+        onlineClients: onlineClients(room),
+      })
+    );
   }
 
   ws.on("message", (data) => {
