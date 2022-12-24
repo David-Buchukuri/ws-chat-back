@@ -1,7 +1,7 @@
 const onlineClients = require("../helpers/onlineClients");
 
-class ChatController {
-  static message(room, receivedMessage) {
+class ChatControllerClass {
+  message(room, receivedMessage) {
     for (let client in room) {
       room[client].ws.send(
         JSON.stringify({
@@ -15,7 +15,7 @@ class ChatController {
     }
   }
 
-  static typing(room, receivedMessage) {
+  typing(room, receivedMessage) {
     for (let client in room) {
       // don't send this notification to the sender himself
       if (receivedMessage?.clientId != client) {
@@ -29,7 +29,7 @@ class ChatController {
     }
   }
 
-  static close(rooms, roomId, clientId) {
+  close(rooms, roomId, clientId) {
     rooms[roomId][clientId].ws.terminate();
     delete rooms[roomId][clientId];
     if (Object.keys(rooms[roomId]).length === 0) {
@@ -49,5 +49,7 @@ class ChatController {
     }
   }
 }
+
+const ChatController = new ChatControllerClass();
 
 module.exports = ChatController;

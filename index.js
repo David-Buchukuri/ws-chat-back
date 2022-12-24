@@ -112,9 +112,13 @@ wss.on("connection", async (ws, roomId) => {
   });
 });
 
-// monitoring for broken connections
+// monitoring for broken connections and empty rooms
 const pingInterval = setInterval(() => {
   for (let roomId in rooms) {
+    if (Object.keys(rooms[roomId]).length === 0) {
+      delete rooms[roomId];
+      continue;
+    }
     for (let clientId in rooms[roomId]) {
       let client = rooms[roomId][clientId];
       if (!client.isAlive) {
