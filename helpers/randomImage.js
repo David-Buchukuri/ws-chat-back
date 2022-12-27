@@ -17,8 +17,7 @@ const randomImage = async () => {
 
     return randomImage;
   } catch (err) {
-    console.log(err);
-    return "http://127.0.0.1:8005/default";
+    return null;
   }
 };
 

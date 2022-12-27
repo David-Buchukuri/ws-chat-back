@@ -7,6 +7,7 @@ const fs = require("fs");
 const path = require("path");
 const ChatController = require("./controllers/chatController");
 const onlineClients = require("./helpers/onlineClients.js");
+require("dotenv").config();
 
 server = http.createServer((req, res) => {
   if (req.url == "/create-room") {
@@ -34,8 +35,8 @@ server = http.createServer((req, res) => {
   }
 });
 
-server.listen(8005, () => {
-  console.log("listening on port 8005");
+server.listen(process.env.PORT, () => {
+  console.log(`listening on port ${process.env.PORT}`);
 });
 
 const wss = new WebSocket.Server({
@@ -133,7 +134,7 @@ const pingInterval = setInterval(() => {
       }
     }
   }
-}, 8640000);
+}, 86400000);
 
 ["uncaughtException", "unhandledRejection"].forEach((event) => {
   process.on(event, (err) => {
