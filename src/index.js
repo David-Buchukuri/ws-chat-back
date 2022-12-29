@@ -1,15 +1,13 @@
 const http = require("http");
 const crypto = require("crypto");
 const WebSocket = require("ws");
-const randomNickname = require("./helpers/randomNickname.js");
-const randomImage = require("./helpers/randomImage.js");
 const fs = require("fs");
 const path = require("path");
 const ChatController = require("./controllers/chatController");
 const onlineClients = require("./helpers/onlineClients.js");
 require("dotenv").config();
 
-server = http.createServer((req, res) => {
+const server = http.createServer((req, res) => {
   if (req.url == "/create-room") {
     const roomId = crypto.randomBytes(30).toString("hex");
     // create empty room
@@ -28,7 +26,7 @@ server = http.createServer((req, res) => {
       "Content-Type": "image/jpeg",
     });
     const image = fs.readFileSync(
-      path.resolve(__dirname, "./assets/default.jpg")
+      path.resolve(__dirname, "../assets/default.jpg")
     );
     res.write(image);
     res.end();
@@ -44,7 +42,7 @@ const wss = new WebSocket.Server({
 });
 
 server.on("upgrade", async function upgrade(request, socket, head) {
-  roomId = request.url.substring(9);
+  const roomId = request.url.substring(9);
 
   // check if room exists or not and if it has more than 1 client
   if (!rooms[roomId] || Object.keys(rooms[roomId]).length > 1) {
@@ -61,26 +59,7 @@ server.on("upgrade", async function upgrade(request, socket, head) {
 const rooms = {};
 
 wss.on("connection", async (ws, roomId) => {
-  const clientId = crypto.randomBytes(30).toString("hex");
-  const nickname =
-    crypto.randomBytes(20).toString("hex") + " " + randomNickname();
-  const pfp = await randomImage();
-
-  // putting newly connected user in appropriate room with unique id, nickname and pfp
-  const room = rooms[roomId];
-  room[clientId] = { ws: ws, nickname: nickname, pfp: pfp, isAlive: true };
-  ws.send(JSON.stringify({ type: "clientId", value: clientId }));
-
-  // sending user joined notification to all clients in the room
-  for (let client in room) {
-    room[client].ws.send(
-      JSON.stringify({
-        type: "join",
-        value: nickname,
-        onlineClients: onlineClients(room),
-      })
-    );
-  }
+  const { clientId, pfp, room } = await ChatController.join(ws, roomId, rooms);
 
   ws.on("message", (data) => {
     let receivedMessage = JSON.parse(data.toString());
@@ -138,6 +117,6 @@ const pingInterval = setInterval(() => {
 
 ["uncaughtException", "unhandledRejection"].forEach((event) => {
   process.on(event, (err) => {
-    console.log(`something went wrong ${event} error: ${err.stack || error}`);
+    console.log(`something went wrong ${event} error: ${err.stack || err}`);
   });
 });

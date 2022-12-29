@@ -1,5 +1,5 @@
-const animals = require("../data/animals.js");
-const adjectives = require("../data/adjectives.js");
+const animals = require("../../data/animals");
+const adjectives = require("../../data/adjectives.js");
 
 const randomNickname = () => {
   const adjective = adjectives[Math.round(Math.random() * adjectives.length)];
