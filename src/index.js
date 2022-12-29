@@ -25,11 +25,21 @@ const server = http.createServer((req, res) => {
       "Access-Control-Allow-Origin": "*",
       "Content-Type": "image/jpeg",
     });
-    const image = fs.readFileSync(
-      path.resolve(__dirname, "../assets/default.jpg")
+    fs.readFile(
+      path.resolve(__dirname, "../assets/default.jpg"),
+      (err, image) => {
+        if (err) {
+          res.writeHead(500);
+          res.write(
+            JSON.stringify({ message: "server side error happened :(" })
+          );
+          res.end();
+          return;
+        }
+        res.write(image);
+        res.end();
+      }
     );
-    res.write(image);
-    res.end();
   }
 });
 
