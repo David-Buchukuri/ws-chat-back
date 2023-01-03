@@ -17,7 +17,6 @@ const randomImage = async () => {
 
     return randomImage;
   } catch (err) {
-    console.log(err);
     return null;
   }
 };
