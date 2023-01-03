@@ -1,7 +1,7 @@
 const randomImage = async () => {
   try {
     let showsPromise = await fetch(
-      "http://api.random-avatars.holmista.tech/info/available-resources"
+      "https://api.random-avatars.holmista.tech/resource/available-resources"
     );
     let showsBody = await showsPromise.json();
     let randomShow =
@@ -10,13 +10,14 @@ const randomImage = async () => {
       ];
 
     let imagePromise = await fetch(
-      `http://api.random-avatars.holmista.tech/images/${randomShow}/random/small`
+      `https://api.random-avatars.holmista.tech/images/${randomShow}/random/small`
     );
     let imageBody = await imagePromise.json();
     let randomImage = imageBody.path;
 
     return randomImage;
   } catch (err) {
+    console.log(err);
     return null;
   }
 };
