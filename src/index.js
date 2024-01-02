@@ -18,6 +18,7 @@ const server = http.createServer((req, res) => {
     });
     res.write(JSON.stringify({ roomId: roomId }));
     res.end();
+    return;
   }
 
   if (req.url == "/default") {
@@ -40,7 +41,10 @@ const server = http.createServer((req, res) => {
         res.end();
       }
     );
+    return;
   }
+  res.writeHead(404);
+  res.end();
 });
 
 server.listen(process.env.PORT, () => {
